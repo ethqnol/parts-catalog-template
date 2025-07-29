@@ -1,0 +1,438 @@
+---
+import { DatabaseService, type Env } from '../lib/db';
+
+const env = Astro.locals.runtime.env as Env;
+const db = new DatabaseService(env.DB);
+
+let partTypes = [];
+
+try {
+  partTypes = await db.getPartTypes();
+} catch (error) {
+  console.error('Database error:', error);
+}
+---
+
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+		<meta name="viewport" content="width=device-width" />
+		<meta name="generator" content={Astro.generator} />
+		<title>Manage Part Types - Robotics Parts Catalog</title>
+		<style>
+			body {
+				font-family: system-ui, sans-serif;
+				margin: 0;
+				padding: 20px;
+				background-color: #f5f5f5;
+			}
+			.container {
+				max-width: 1200px;
+				margin: 0 auto;
+				background: white;
+				padding: 20px;
+				border-radius: 8px;
+				box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+			}
+			.header {
+				display: flex;
+				justify-content: space-between;
+				align-items: center;
+				margin-bottom: 30px;
+				border-bottom: 2px solid #eee;
+				padding-bottom: 20px;
+			}
+			.nav {
+				display: flex;
+				gap: 20px;
+			}
+			.nav a {
+				text-decoration: none;
+				color: #007acc;
+				padding: 8px 16px;
+				border-radius: 4px;
+				border: 1px solid #007acc;
+				transition: all 0.2s;
+			}
+			.nav a:hover, .nav a.active {
+				background-color: #007acc;
+				color: white;
+			}
+			.add-form {
+				background: #f8f9fa;
+				padding: 20px;
+				border-radius: 8px;
+				margin-bottom: 30px;
+				border: 1px solid #dee2e6;
+			}
+			.form-row {
+				display: flex;
+				gap: 15px;
+				align-items: end;
+			}
+			.form-group {
+				flex: 1;
+			}
+			.form-group label {
+				display: block;
+				margin-bottom: 5px;
+				font-weight: bold;
+			}
+			.form-group input {
+				width: 100%;
+				padding: 10px 12px;
+				border: 1px solid #ddd;
+				border-radius: 4px;
+				font-size: 1em;
+				box-sizing: border-box;
+				height: 42px;
+				transition: border-color 0.2s, box-shadow 0.2s;
+			}
+			.form-group input:focus {
+				outline: none;
+				border-color: #007acc;
+				box-shadow: 0 0 0 2px rgba(0, 122, 204, 0.1);
+			}
+			.btn {
+				padding: 10px 20px;
+				border: none;
+				border-radius: 4px;
+				cursor: pointer;
+				font-size: 1em;
+				transition: background-color 0.2s;
+				height: 42px;
+				white-space: nowrap;
+				margin-left: 15px;
+			}
+			.btn-primary {
+				background-color: #007acc;
+				color: white;
+				font-weight: 500;
+			}
+			.btn-primary:hover {
+				background-color: #0056b3;
+			}
+			.parts-table {
+				width: 100%;
+				border-collapse: collapse;
+				margin-top: 20px;
+			}
+			.parts-table th,
+			.parts-table td {
+				padding: 12px;
+				text-align: left;
+				border-bottom: 1px solid #dee2e6;
+			}
+			.parts-table th {
+				background-color: #f8f9fa;
+				font-weight: bold;
+			}
+			.parts-table tr:hover {
+				background-color: #f5f5f5;
+			}
+			.alert {
+				padding: 12px;
+				margin-bottom: 20px;
+				border-radius: 4px;
+				display: none;
+			}
+			.alert-success {
+				background-color: #d4edda;
+				border: 1px solid #c3e6cb;
+				color: #155724;
+			}
+			.alert-error {
+				background-color: #f8d7da;
+				border: 1px solid #f5c6cb;
+				color: #721c24;
+			}
+			.btn-danger {
+				background-color: #dc3545;
+				color: white;
+				font-size: 0.9em;
+				padding: 8px 16px;
+				font-weight: 500;
+			}
+			.btn-danger:hover {
+				background-color: #c82333;
+			}
+			.btn-danger:disabled {
+				background-color: #6c757d;
+				cursor: not-allowed;
+			}
+			.actions-cell {
+				text-align: center;
+				width: 100px;
+			}
+			.table-container {
+				overflow-x: auto;
+				border: 1px solid #dee2e6;
+				border-radius: 8px;
+			}
+
+			/* Responsive design */
+			@media (max-width: 768px) {
+				.container {
+					padding: 10px;
+					margin: 10px;
+				}
+				.header {
+					flex-direction: column;
+					gap: 15px;
+					align-items: flex-start;
+				}
+				.nav {
+					flex-wrap: wrap;
+					gap: 10px;
+				}
+				.nav a {
+					padding: 6px 12px;
+					font-size: 0.9em;
+				}
+				.form-row {
+					flex-direction: column;
+					align-items: stretch;
+				}
+				.form-group {
+					margin-bottom: 15px;
+				}
+			}
+
+			@media (max-width: 480px) {
+				body {
+					padding: 10px;
+				}
+				.container {
+					margin: 0;
+				}
+				.parts-table th,
+				.parts-table td {
+					padding: 8px;
+					font-size: 0.9em;
+				}
+			}
+		</style>
+	</head>
+	<body>
+		<div class="container">
+			<div class="header">
+				<h1>Manage Part Types</h1>
+				<nav class="nav">
+					<a href="/">Parts</a>
+					<a href="/part-types" class="active">Manage Part Types</a>
+					<a href="/transactions">Transaction Log</a>
+				</nav>
+			</div>
+
+			<div id="alert" class="alert">
+				<span id="alertMessage"></span>
+			</div>
+
+			<div class="add-form">
+				<h2>Add New Part Type</h2>
+				<form id="addPartTypeForm">
+					<div class="form-row">
+						<div class="form-group">
+							<label for="partTypeName">Part Type Name:</label>
+							<input type="text" id="partTypeName" required placeholder="e.g., screw-0.5in">
+						</div>
+						<div class="form-group">
+							<label for="partTypeDescription">Description:</label>
+							<input type="text" id="partTypeDescription" placeholder="e.g., 0.5 inch screws">
+						</div>
+						<button type="submit" class="btn btn-primary">Add Part Type</button>
+					</div>
+				</form>
+			</div>
+
+			<h2>Existing Part Types</h2>
+			<div class="table-container">
+				<table class="parts-table">
+				<thead>
+					<tr>
+						<th>Name</th>
+						<th>Description</th>
+						<th>Created</th>
+						<th>Actions</th>
+					</tr>
+				</thead>
+				<tbody id="partTypesTableBody">
+					{partTypes.map(partType => (
+						<tr data-part-type-id={partType.id}>
+							<td>{partType.name}</td>
+							<td>{partType.description || 'No description'}</td>
+							<td>{new Date(partType.created_at).toLocaleDateString()}</td>
+							<td class="actions-cell">
+								<button 
+									class="btn btn-danger" 
+									onclick={`deletePartType(${partType.id}, '${partType.name}')`}
+								>
+									Delete
+								</button>
+							</td>
+						</tr>
+					))}
+				</tbody>
+				</table>
+			</div>
+		</div>
+
+		<script>
+			function showAlert(message, type = 'success') {
+				const alert = document.getElementById('alert');
+				const alertMessage = document.getElementById('alertMessage');
+				
+				alert.className = `alert alert-${type}`;
+				alertMessage.textContent = message;
+				alert.style.display = 'block';
+				
+				setTimeout(() => {
+					alert.style.display = 'none';
+				}, 5000);
+			}
+
+			document.getElementById('addPartTypeForm').addEventListener('submit', async (e) => {
+				e.preventDefault();
+				
+				const name = document.getElementById('partTypeName').value.trim();
+				const description = document.getElementById('partTypeDescription').value.trim();
+
+				if (!name) {
+					showAlert('Part type name is required', 'error');
+					return;
+				}
+
+				try {
+					const response = await fetch('/api/part-types', {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify({ name, description })
+					});
+
+					if (response.ok) {
+						const newPartType = await response.json();
+						showAlert(`Part type "${newPartType.name}" added successfully!`);
+						
+						// Reset form
+						document.getElementById('addPartTypeForm').reset();
+						
+						// Add new row to table with explicit styling
+						const tbody = document.getElementById('partTypesTableBody');
+						const newRow = document.createElement('tr');
+						newRow.dataset.partTypeId = newPartType.id;
+						
+						// Apply explicit styles to match existing rows
+						newRow.style.borderBottom = '1px solid #dee2e6';
+						newRow.addEventListener('mouseenter', function() {
+							this.style.backgroundColor = '#f5f5f5';
+						});
+						newRow.addEventListener('mouseleave', function() {
+							this.style.backgroundColor = '';
+						});
+						
+						// Create table cells with explicit styling
+						const nameCell = document.createElement('td');
+						nameCell.textContent = newPartType.name;
+						nameCell.style.padding = '12px';
+						nameCell.style.textAlign = 'left';
+						nameCell.style.borderBottom = '1px solid #dee2e6';
+						
+						const descCell = document.createElement('td');
+						descCell.textContent = newPartType.description || 'No description';
+						descCell.style.padding = '12px';
+						descCell.style.textAlign = 'left';
+						descCell.style.borderBottom = '1px solid #dee2e6';
+						
+						const dateCell = document.createElement('td');
+						dateCell.textContent = new Date(newPartType.created_at).toLocaleDateString();
+						dateCell.style.padding = '12px';
+						dateCell.style.textAlign = 'left';
+						dateCell.style.borderBottom = '1px solid #dee2e6';
+						
+						const actionCell = document.createElement('td');
+						actionCell.className = 'actions-cell';
+						actionCell.style.padding = '12px';
+						actionCell.style.textAlign = 'center';
+						actionCell.style.borderBottom = '1px solid #dee2e6';
+						actionCell.style.width = '100px';
+						
+						const deleteBtn = document.createElement('button');
+						deleteBtn.className = 'btn btn-danger';
+						deleteBtn.textContent = 'Delete';
+						deleteBtn.style.backgroundColor = '#dc3545';
+						deleteBtn.style.color = 'white';
+						deleteBtn.style.fontSize = '0.9em';
+						deleteBtn.style.padding = '8px 16px';
+						deleteBtn.style.fontWeight = '500';
+						deleteBtn.style.border = 'none';
+						deleteBtn.style.borderRadius = '4px';
+						deleteBtn.style.cursor = 'pointer';
+						deleteBtn.style.transition = 'background-color 0.2s';
+						
+						deleteBtn.addEventListener('mouseenter', function() {
+							this.style.backgroundColor = '#c82333';
+						});
+						deleteBtn.addEventListener('mouseleave', function() {
+							this.style.backgroundColor = '#dc3545';
+						});
+						
+						deleteBtn.onclick = () => deletePartType(newPartType.id, newPartType.name);
+						
+						actionCell.appendChild(deleteBtn);
+						
+						// Append all cells to the row
+						newRow.appendChild(nameCell);
+						newRow.appendChild(descCell);
+						newRow.appendChild(dateCell);
+						newRow.appendChild(actionCell);
+						
+						// Add the row to the table
+						tbody.appendChild(newRow);
+					} else {
+						const error = await response.json();
+						showAlert('Error: ' + error.error, 'error');
+					}
+				} catch (error) {
+					showAlert('Error adding part type: ' + error.message, 'error');
+				}
+			});
+
+			window.deletePartType = async function(partTypeId, partTypeName) {
+				// Confirm deletion
+				const confirmed = confirm(
+					`Are you sure you want to delete the part type "${partTypeName}"?\n\n` +
+					`This will only work if:\n` +
+					`• There are no transactions for this part type\n` +
+					`• There is no current inventory (count = 0)\n\n` +
+					`This action cannot be undone.`
+				);
+
+				if (!confirmed) return;
+
+				try {
+					const response = await fetch('/api/part-types', {
+						method: 'DELETE',
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify({ id: partTypeId })
+					});
+
+					if (response.ok) {
+						showAlert(`Part type "${partTypeName}" deleted successfully!`);
+						
+						// Remove row from table
+						const row = document.querySelector(`tr[data-part-type-id="${partTypeId}"]`);
+						if (row) {
+							row.remove();
+						}
+					} else {
+						const error = await response.json();
+						showAlert('Error: ' + error.error, 'error');
+					}
+				} catch (error) {
+					showAlert('Error deleting part type: ' + error.message, 'error');
+				}
+			}
+		</script>
+	</body>
+</html>

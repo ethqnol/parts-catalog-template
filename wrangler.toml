@@ -1,0 +1,8 @@
+name = "robotics-parts-catalog"
+compatibility_date = "2024-05-20"
+pages_build_output_dir = "./dist"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "robotics_parts_db"
+database_id = "ae463e6e-50b8-4252-b77f-15cc08765f98"

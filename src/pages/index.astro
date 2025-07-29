@@ -1,0 +1,469 @@
+---
+import { DatabaseService, type Env } from '../lib/db';
+
+const env = Astro.locals.runtime.env as Env;
+const db = new DatabaseService(env.DB);
+
+let parts = [];
+let partTypes = [];
+
+try {
+  parts = await db.getParts();
+  partTypes = await db.getPartTypes();
+} catch (error) {
+  console.error('Database error:', error);
+}
+---
+
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+		<meta name="viewport" content="width=device-width" />
+		<meta name="generator" content={Astro.generator} />
+		<title>Robotics Parts Catalog</title>
+		<style>
+			body {
+				font-family: system-ui, sans-serif;
+				margin: 0;
+				padding: 20px;
+				background-color: #f5f5f5;
+			}
+			.container {
+				max-width: 1200px;
+				margin: 0 auto;
+				background: white;
+				padding: 20px;
+				border-radius: 8px;
+				box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+			}
+			.header {
+				display: flex;
+				justify-content: space-between;
+				align-items: center;
+				margin-bottom: 30px;
+				border-bottom: 2px solid #eee;
+				padding-bottom: 20px;
+			}
+			.nav {
+				display: flex;
+				gap: 20px;
+			}
+			.nav a {
+				text-decoration: none;
+				color: #007acc;
+				padding: 8px 16px;
+				border-radius: 4px;
+				border: 1px solid #007acc;
+				transition: all 0.2s;
+			}
+			.nav a:hover {
+				background-color: #007acc;
+				color: white;
+			}
+			.parts-grid {
+				display: grid;
+				grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+				gap: 30px;
+				margin-bottom: 30px;
+				align-items: start;
+			}
+			.part-card {
+				border: 1px solid #ddd;
+				border-radius: 8px;
+				padding: 24px;
+				background: #fafafa;
+				display: flex;
+				flex-direction: column;
+				min-height: 220px;
+				box-sizing: border-box;
+			}
+			.part-name {
+				font-size: 1.2em;
+				font-weight: bold;
+				margin-bottom: 10px;
+				color: #333;
+				word-break: break-word;
+				overflow-wrap: break-word;
+			}
+			.part-count {
+				font-size: 2em;
+				color: #007acc;
+				margin: 10px 0;
+				font-weight: bold;
+			}
+			.part-description {
+				color: #666;
+				font-size: 0.9em;
+				margin-bottom: 15px;
+				flex-grow: 1;
+				overflow: hidden;
+				text-overflow: ellipsis;
+				display: -webkit-box;
+				-webkit-line-clamp: 3;
+				-webkit-box-orient: vertical;
+			}
+			.part-actions {
+				display: flex;
+				gap: 8px;
+				flex-wrap: wrap;
+				margin-top: auto;
+			}
+			.btn {
+				padding: 8px 12px;
+				border: none;
+				border-radius: 4px;
+				cursor: pointer;
+				font-size: 0.85em;
+				transition: background-color 0.2s;
+				flex: 1;
+				min-width: 0;
+				white-space: nowrap;
+				overflow: hidden;
+				text-overflow: ellipsis;
+			}
+			.btn-add {
+				background-color: #28a745;
+				color: white;
+			}
+			.btn-add:hover {
+				background-color: #218838;
+			}
+			.btn-remove {
+				background-color: #dc3545;
+				color: white;
+			}
+			.btn-remove:hover {
+				background-color: #c82333;
+			}
+			.modal {
+				display: none;
+				position: fixed;
+				top: 0;
+				left: 0;
+				width: 100%;
+				height: 100%;
+				background-color: rgba(0,0,0,0.5);
+				z-index: 1000;
+			}
+			.modal-content {
+				position: absolute;
+				top: 50%;
+				left: 50%;
+				transform: translate(-50%, -50%);
+				background: white;
+				padding: 30px;
+				border-radius: 8px;
+				width: 90%;
+				max-width: 500px;
+			}
+			.form-group {
+				margin-bottom: 20px;
+			}
+			.form-group label {
+				display: block;
+				margin-bottom: 8px;
+				font-weight: bold;
+				color: #333;
+			}
+			.form-group input, 
+			.form-group textarea {
+				width: 100%;
+				padding: 12px 16px;
+				border: 1px solid #ddd;
+				border-radius: 4px;
+				font-size: 1em;
+				box-sizing: border-box;
+				transition: border-color 0.2s, box-shadow 0.2s;
+			}
+			.form-group input:focus,
+			.form-group textarea:focus {
+				outline: none;
+				border-color: #007acc;
+				box-shadow: 0 0 0 2px rgba(0, 122, 204, 0.1);
+			}
+			.form-group textarea {
+				resize: vertical;
+				min-height: 80px;
+			}
+			.form-actions {
+				display: flex;
+				gap: 12px;
+				justify-content: flex-end;
+				margin-top: 25px;
+				padding-top: 15px;
+				border-top: 1px solid #eee;
+			}
+			.btn-primary {
+				background-color: #007acc;
+				color: white;
+				padding: 12px 24px;
+				font-size: 1em;
+				font-weight: 500;
+			}
+			.btn-primary:hover {
+				background-color: #0056b3;
+			}
+			.btn-secondary {
+				background-color: #6c757d;
+				color: white;
+				padding: 12px 24px;
+				font-size: 1em;
+				font-weight: 500;
+			}
+			.btn-secondary:hover {
+				background-color: #545b62;
+			}
+			
+			/* Responsive design */
+			@media (max-width: 1200px) {
+				.parts-grid {
+					grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+					gap: 25px;
+				}
+			}
+
+			@media (max-width: 768px) {
+				.container {
+					padding: 10px;
+					margin: 10px;
+				}
+				.header {
+					flex-direction: column;
+					gap: 15px;
+					align-items: flex-start;
+				}
+				.nav {
+					flex-wrap: wrap;
+					gap: 10px;
+				}
+				.nav a {
+					padding: 6px 12px;
+					font-size: 0.9em;
+				}
+				.parts-grid {
+					grid-template-columns: 1fr;
+					gap: 20px;
+				}
+				.part-card {
+					min-height: auto;
+					padding: 20px;
+				}
+				.modal-content {
+					width: 95%;
+					padding: 20px;
+				}
+				.part-actions {
+					flex-direction: column;
+				}
+				.btn {
+					flex: none;
+				}
+			}
+
+			@media (max-width: 480px) {
+				body {
+					padding: 10px;
+				}
+				.container {
+					margin: 0;
+				}
+				.part-count {
+					font-size: 1.5em;
+				}
+			}
+		</style>
+	</head>
+	<body>
+		<div class="container">
+			<div class="header">
+				<h1>Robotics Parts Catalog</h1>
+				<nav class="nav">
+					<a href="/">Parts</a>
+					<a href="/part-types">Manage Part Types</a>
+					<a href="/transactions">Transaction Log</a>
+				</nav>
+			</div>
+
+			<div class="parts-grid" id="partsGrid">
+				{parts.map(part => (
+					<div class="part-card" data-part-id={part.id}>
+						<div class="part-name">{part.part_type.name}</div>
+						<div class="part-count">{part.current_count}</div>
+						<div class="part-description">{part.part_type.description}</div>
+						<div class="part-actions">
+							<button class="btn btn-add" onclick={`openAddModal(${part.id}, '${part.part_type.name}')`}>
+								Add Parts
+							</button>
+							<button class="btn btn-remove" onclick={`openRemoveModal(${part.id}, '${part.part_type.name}', ${part.current_count})`}>
+								Remove Parts
+							</button>
+						</div>
+					</div>
+				))}
+			</div>
+		</div>
+
+		<!-- Add Parts Modal -->
+		<div id="addModal" class="modal">
+			<div class="modal-content">
+				<h2>Add Parts</h2>
+				<form id="addForm">
+					<div class="form-group">
+						<label>Part: <span id="addPartName"></span></label>
+					</div>
+					<div class="form-group">
+						<label for="addQuantity">Quantity:</label>
+						<input type="number" id="addQuantity" min="1" required>
+					</div>
+					<div class="form-group">
+						<label for="addUserName">Your Name:</label>
+						<input type="text" id="addUserName" required>
+					</div>
+					<div class="form-group">
+						<label for="addDescription">Description (optional):</label>
+						<textarea id="addDescription" rows="3" placeholder="What are these parts for?"></textarea>
+					</div>
+					<div class="form-actions">
+						<button type="button" class="btn btn-secondary" onclick="closeModal('addModal')">Cancel</button>
+						<button type="submit" class="btn btn-primary">Add Parts</button>
+					</div>
+				</form>
+			</div>
+		</div>
+
+		<!-- Remove Parts Modal -->
+		<div id="removeModal" class="modal">
+			<div class="modal-content">
+				<h2>Remove Parts</h2>
+				<form id="removeForm">
+					<div class="form-group">
+						<label>Part: <span id="removePartName"></span></label>
+						<label>Available: <span id="removeAvailable"></span></label>
+					</div>
+					<div class="form-group">
+						<label for="removeQuantity">Quantity to Remove:</label>
+						<input type="number" id="removeQuantity" min="1" required>
+					</div>
+					<div class="form-group">
+						<label for="removeUserName">Your Name:</label>
+						<input type="text" id="removeUserName" required>
+					</div>
+					<div class="form-group">
+						<label for="removeReason">Reason for Removal:</label>
+						<input type="text" id="removeReason" required placeholder="e.g., Used in robot build, Damaged, Lost">
+					</div>
+					<div class="form-group">
+						<label for="removeDescription">Description (optional):</label>
+						<textarea id="removeDescription" rows="3" placeholder="Additional details about usage..."></textarea>
+					</div>
+					<div class="form-actions">
+						<button type="button" class="btn btn-secondary" onclick="closeModal('removeModal')">Cancel</button>
+						<button type="submit" class="btn btn-primary">Remove Parts</button>
+					</div>
+				</form>
+			</div>
+		</div>
+
+		<script>
+			let currentPartId = null;
+
+			window.openAddModal = function(partId, partName) {
+				currentPartId = partId;
+				document.getElementById('addPartName').textContent = partName;
+				document.getElementById('addModal').style.display = 'block';
+				document.getElementById('addForm').reset();
+			}
+
+			window.openRemoveModal = function(partId, partName, available) {
+				currentPartId = partId;
+				document.getElementById('removePartName').textContent = partName;
+				document.getElementById('removeAvailable').textContent = available;
+				document.getElementById('removeQuantity').max = available;
+				document.getElementById('removeModal').style.display = 'block';
+				document.getElementById('removeForm').reset();
+			}
+
+			window.closeModal = function(modalId) {
+				document.getElementById(modalId).style.display = 'none';
+				currentPartId = null;
+			}
+
+			// Close modal when clicking outside
+			window.onclick = function(event) {
+				const addModal = document.getElementById('addModal');
+				const removeModal = document.getElementById('removeModal');
+				if (event.target === addModal) {
+					closeModal('addModal');
+				}
+				if (event.target === removeModal) {
+					closeModal('removeModal');
+				}
+			}
+
+			// Handle add form submission
+			document.getElementById('addForm').addEventListener('submit', async (e) => {
+				e.preventDefault();
+				
+				const quantity = parseInt(document.getElementById('addQuantity').value);
+				const userName = document.getElementById('addUserName').value;
+				const description = document.getElementById('addDescription').value;
+
+				try {
+					const response = await fetch('/api/parts/add', {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify({
+							partId: currentPartId,
+							quantity,
+							userName,
+							description
+						})
+					});
+
+					if (response.ok) {
+						location.reload();
+					} else {
+						const error = await response.json();
+						alert('Error: ' + error.error);
+					}
+				} catch (error) {
+					alert('Error adding parts: ' + error.message);
+				}
+			});
+
+			// Handle remove form submission
+			document.getElementById('removeForm').addEventListener('submit', async (e) => {
+				e.preventDefault();
+				
+				const quantity = parseInt(document.getElementById('removeQuantity').value);
+				const userName = document.getElementById('removeUserName').value;
+				const reason = document.getElementById('removeReason').value;
+				const description = document.getElementById('removeDescription').value;
+
+				try {
+					const response = await fetch('/api/parts/remove', {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify({
+							partId: currentPartId,
+							quantity,
+							userName,
+							reason,
+							description
+						})
+					});
+
+					if (response.ok) {
+						location.reload();
+					} else {
+						const error = await response.json();
+						alert('Error: ' + error.error);
+					}
+				} catch (error) {
+					alert('Error removing parts: ' + error.message);
+				}
+			});
+		</script>
+	</body>
+</html>

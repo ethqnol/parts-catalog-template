@@ -1,0 +1,390 @@
+---
+import { DatabaseService, type Env } from '../lib/db';
+
+const env = Astro.locals.runtime.env as Env;
+const db = new DatabaseService(env.DB);
+
+let transactions = [];
+
+try {
+  transactions = await db.getTransactions(100);
+} catch (error) {
+  console.error('Database error:', error);
+}
+---
+
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+		<meta name="viewport" content="width=device-width" />
+		<meta name="generator" content={Astro.generator} />
+		<title>Transaction Log - Robotics Parts Catalog</title>
+		<style>
+			body {
+				font-family: system-ui, sans-serif;
+				margin: 0;
+				padding: 20px;
+				background-color: #f5f5f5;
+			}
+			.container {
+				max-width: 1200px;
+				margin: 0 auto;
+				background: white;
+				padding: 20px;
+				border-radius: 8px;
+				box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+			}
+			.header {
+				display: flex;
+				justify-content: space-between;
+				align-items: center;
+				margin-bottom: 30px;
+				border-bottom: 2px solid #eee;
+				padding-bottom: 20px;
+			}
+			.nav {
+				display: flex;
+				gap: 20px;
+			}
+			.nav a {
+				text-decoration: none;
+				color: #007acc;
+				padding: 8px 16px;
+				border-radius: 4px;
+				border: 1px solid #007acc;
+				transition: all 0.2s;
+			}
+			.nav a:hover, .nav a.active {
+				background-color: #007acc;
+				color: white;
+			}
+			.table-container {
+				overflow-x: auto;
+				margin-top: 20px;
+				border: 1px solid #dee2e6;
+				border-radius: 8px;
+			}
+			.transactions-table {
+				width: 100%;
+				border-collapse: collapse;
+				min-width: 800px;
+			}
+			.transactions-table th,
+			.transactions-table td {
+				padding: 8px 12px;
+				text-align: left;
+				border-bottom: 1px solid #dee2e6;
+				vertical-align: top;
+			}
+			.transactions-table th {
+				background-color: #f8f9fa;
+				font-weight: bold;
+				position: sticky;
+				top: 0;
+				z-index: 10;
+			}
+			.transactions-table tr:hover {
+				background-color: #f5f5f5;
+			}
+			.transaction-type {
+				padding: 4px 8px;
+				border-radius: 4px;
+				font-size: 0.8em;
+				font-weight: bold;
+				text-transform: uppercase;
+			}
+			.transaction-add {
+				background-color: #d4edda;
+				color: #155724;
+			}
+			.transaction-remove {
+				background-color: #f8d7da;
+				color: #721c24;
+			}
+			.quantity {
+				font-weight: bold;
+			}
+			.quantity.add {
+				color: #28a745;
+			}
+			.quantity.remove {
+				color: #dc3545;
+			}
+			.description {
+				max-width: 200px;
+				overflow: hidden;
+				text-overflow: ellipsis;
+				white-space: nowrap;
+			}
+			.reason-cell {
+				max-width: 150px;
+				overflow: hidden;
+				text-overflow: ellipsis;
+				white-space: nowrap;
+			}
+			.user-cell {
+				max-width: 120px;
+				overflow: hidden;
+				text-overflow: ellipsis;
+				white-space: nowrap;
+			}
+			.part-cell {
+				max-width: 150px;
+				overflow: hidden;
+				text-overflow: ellipsis;
+				white-space: nowrap;
+				font-weight: 500;
+			}
+			.date-cell {
+				min-width: 140px;
+				font-size: 0.9em;
+			}
+			.filters {
+				display: flex;
+				gap: 15px;
+				margin-bottom: 20px;
+				padding: 15px;
+				background: #f8f9fa;
+				border-radius: 8px;
+			}
+			.filter-group {
+				display: flex;
+				flex-direction: column;
+				gap: 8px;
+			}
+			.filter-group label {
+				font-size: 0.9em;
+				font-weight: bold;
+				color: #333;
+			}
+			.filter-group select, 
+			.filter-group input {
+				padding: 10px 12px;
+				border: 1px solid #ddd;
+				border-radius: 4px;
+				font-size: 1em;
+				height: 42px;
+				box-sizing: border-box;
+				transition: border-color 0.2s, box-shadow 0.2s;
+			}
+			.filter-group select:focus,
+			.filter-group input:focus {
+				outline: none;
+				border-color: #007acc;
+				box-shadow: 0 0 0 2px rgba(0, 122, 204, 0.1);
+			}
+			.stats {
+				display: grid;
+				grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+				gap: 20px;
+				margin-bottom: 30px;
+			}
+			.stat-card {
+				background: #f8f9fa;
+				padding: 15px;
+				border-radius: 8px;
+				border: 1px solid #dee2e6;
+				text-align: center;
+			}
+			.stat-number {
+				font-size: 2em;
+				font-weight: bold;
+				color: #007acc;
+			}
+			.stat-label {
+				color: #666;
+				font-size: 0.9em;
+			}
+
+			/* Responsive design */
+			@media (max-width: 768px) {
+				.container {
+					padding: 10px;
+					margin: 10px;
+				}
+				.header {
+					flex-direction: column;
+					gap: 15px;
+					align-items: flex-start;
+				}
+				.nav {
+					flex-wrap: wrap;
+					gap: 10px;
+				}
+				.nav a {
+					padding: 6px 12px;
+					font-size: 0.9em;
+				}
+				.stats {
+					grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+					gap: 15px;
+				}
+				.stat-number {
+					font-size: 1.5em;
+				}
+				.filters {
+					flex-direction: column;
+					gap: 10px;
+				}
+				.filter-group {
+					flex-direction: row;
+					align-items: center;
+					gap: 10px;
+				}
+				.filter-group label {
+					min-width: 80px;
+					font-size: 0.9em;
+				}
+			}
+
+			@media (max-width: 480px) {
+				body {
+					padding: 10px;
+				}
+				.container {
+					margin: 0;
+				}
+				.stats {
+					grid-template-columns: 1fr;
+				}
+				.transactions-table th,
+				.transactions-table td {
+					padding: 6px 8px;
+					font-size: 0.9em;
+				}
+			}
+		</style>
+	</head>
+	<body>
+		<div class="container">
+			<div class="header">
+				<h1>Transaction Log</h1>
+				<nav class="nav">
+					<a href="/">Parts</a>
+					<a href="/part-types">Manage Part Types</a>
+					<a href="/transactions" class="active">Transaction Log</a>
+				</nav>
+			</div>
+
+			<div class="stats">
+				<div class="stat-card">
+					<div class="stat-number" id="totalTransactions">{transactions.length}</div>
+					<div class="stat-label">Total Transactions</div>
+				</div>
+				<div class="stat-card">
+					<div class="stat-number" id="addTransactions">{transactions.filter(t => t.transaction_type === 'add').length}</div>
+					<div class="stat-label">Parts Added</div>
+				</div>
+				<div class="stat-card">
+					<div class="stat-number" id="removeTransactions">{transactions.filter(t => t.transaction_type === 'remove').length}</div>
+					<div class="stat-label">Parts Removed</div>
+				</div>
+			</div>
+
+			<div class="filters">
+				<div class="filter-group">
+					<label for="typeFilter">Transaction Type:</label>
+					<select id="typeFilter">
+						<option value="">All</option>
+						<option value="add">Add</option>
+						<option value="remove">Remove</option>
+					</select>
+				</div>
+				<div class="filter-group">
+					<label for="userFilter">User:</label>
+					<input type="text" id="userFilter" placeholder="Filter by user name">
+				</div>
+				<div class="filter-group">
+					<label for="partFilter">Part:</label>
+					<input type="text" id="partFilter" placeholder="Filter by part name">
+				</div>
+			</div>
+
+			<div class="table-container">
+				<table class="transactions-table">
+					<thead>
+						<tr>
+							<th>Date</th>
+							<th>Type</th>
+							<th>Part</th>
+							<th>Quantity</th>
+							<th>User</th>
+							<th>Reason</th>
+							<th>Description</th>
+						</tr>
+					</thead>
+					<tbody id="transactionsTableBody">
+						{transactions.map(transaction => (
+							<tr data-type={transaction.transaction_type} data-user={transaction.user_name.toLowerCase()} data-part={transaction.part_type_name.toLowerCase()}>
+								<td class="date-cell">{new Date(transaction.created_at).toLocaleDateString()} {new Date(transaction.created_at).toLocaleTimeString()}</td>
+								<td>
+									<span class={`transaction-type transaction-${transaction.transaction_type}`}>
+										{transaction.transaction_type}
+									</span>
+								</td>
+								<td class="part-cell" title={transaction.part_type_name}>{transaction.part_type_name}</td>
+								<td>
+									<span class={`quantity ${transaction.transaction_type}`}>
+										{transaction.transaction_type === 'add' ? '+' : '-'}{transaction.quantity}
+									</span>
+								</td>
+								<td class="user-cell" title={transaction.user_name}>{transaction.user_name}</td>
+								<td class="reason-cell" title={transaction.reason || '-'}>{transaction.reason || '-'}</td>
+								<td class="description" title={transaction.description || '-'}>
+									{transaction.description || '-'}
+								</td>
+							</tr>
+						))}
+					</tbody>
+				</table>
+			</div>
+		</div>
+
+		<script>
+			const typeFilter = document.getElementById('typeFilter');
+			const userFilter = document.getElementById('userFilter');
+			const partFilter = document.getElementById('partFilter');
+			const tableBody = document.getElementById('transactionsTableBody');
+			const rows = Array.from(tableBody.querySelectorAll('tr'));
+
+			function filterTable() {
+				const typeValue = typeFilter.value.toLowerCase();
+				const userValue = userFilter.value.toLowerCase();
+				const partValue = partFilter.value.toLowerCase();
+
+				let visibleCount = 0;
+				let addCount = 0;
+				let removeCount = 0;
+
+				rows.forEach(row => {
+					const rowType = row.dataset.type;
+					const rowUser = row.dataset.user;
+					const rowPart = row.dataset.part;
+
+					const typeMatch = !typeValue || rowType === typeValue;
+					const userMatch = !userValue || rowUser.includes(userValue);
+					const partMatch = !partValue || rowPart.includes(partValue);
+
+					const shouldShow = typeMatch && userMatch && partMatch;
+					row.style.display = shouldShow ? '' : 'none';
+
+					if (shouldShow) {
+						visibleCount++;
+						if (rowType === 'add') addCount++;
+						if (rowType === 'remove') removeCount++;
+					}
+				});
+
+				// Update stats
+				document.getElementById('totalTransactions').textContent = visibleCount;
+				document.getElementById('addTransactions').textContent = addCount;
+				document.getElementById('removeTransactions').textContent = removeCount;
+			}
+
+			typeFilter.addEventListener('change', filterTable);
+			userFilter.addEventListener('input', filterTable);
+			partFilter.addEventListener('input', filterTable);
+		</script>
+	</body>
+</html>
