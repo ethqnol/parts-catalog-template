@@ -13,8 +13,8 @@ npm install -g wrangler
 
 ### 2. Clone & Setup
 ```bash
-git clone <your-repo-url>
-cd robotics-parts-catalog
+git clone github.com/ethqnol/parts-catalog-template.git
+cd parts-catalog-template
 npm install
 ```
 
